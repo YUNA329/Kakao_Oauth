@@ -1,8 +1,7 @@
 import os
-import base64
-import json
 
 import requests
+import jwt
 
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, AllowAny
@@ -39,21 +38,23 @@ def exchange_kakao_access_token(access_code):
         raise KakaoAccessTokenException()
     return response.json()
 
-def verify_kakao_oidc(kakao_data):
-    if kakao_data.get('id_token', None) is None:
-        raise KakaoDataException()
-    # todo: implement OIDC verify code here...
-
 def extract_kakao_nickname(kakao_data):
     id_token = kakao_data.get('id_token', None)
     if id_token is None:
         raise KakaoDataException()
+    
+    jwks_client = jwt.PyJWKClient(os.environ.get('KAKAO_OIDC_URI'))
+    signing_key = jwks_client.get_signing_key_from_jwt(id_token)
+    signing_algol = jwt.get_unverified_header(id_token)['alg']
     try:
-        payload_encoded = id_token.split('.')[1]
-        payload_decoded = base64.urlsafe_b64decode(payload_encoded + '=' * (4 - len(payload_encoded) % 4))
-        payload = json.loads(payload_decoded)
-    except:
-        raise KakaoDataException()
+        payload = jwt.decode(
+            id_token,
+            key=signing_key.key,
+            algorithms=[signing_algol],
+            audience=os.environ.get('KAKAO_REST_API_KEY'),
+        )
+    except jwt.InvalidTokenError:
+        raise KakaoOIDCException()
     return payload['nickname']
 
 @api_view(['POST'])
@@ -65,7 +66,6 @@ def kakao_login(request):
 
     try:
         kakao_data = exchange_kakao_access_token(data['access_code'])
-        verify_kakao_oidc(kakao_data)
         nickname = extract_kakao_nickname(kakao_data)
     except KakaoAccessTokenException:
         return Response({'detail': 'Access token 교환에 실패했습니다.'}, status=401)
@@ -94,7 +94,6 @@ def kakao_register(request):
 
     try:
         kakao_data = exchange_kakao_access_token(data['access_code'])
-        verify_kakao_oidc(kakao_data)
         nickname = extract_kakao_nickname(kakao_data)
     except KakaoAccessTokenException:
         return Response({'detail': 'Access token 교환에 실패했습니다.'}, status=401)
