@@ -136,7 +136,7 @@ DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
 
 #
-AUTH_USER_MODEL = "auths.User"
+AUTH_USER_MODEL = "auths.MutsaUser"
 
 
 #
@@ -151,7 +151,7 @@ REST_FRAMEWORK = {
 }
 
 
-#
+CORS_ORIGIN_ALLOW_ALL = True
 CORS_ALLOWED_ORIGINS = [
     'http://localhost:3000',
 ]
