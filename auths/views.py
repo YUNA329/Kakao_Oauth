@@ -125,6 +125,21 @@ def verify(request):
 
 @api_view(['GET'])
 @permission_classes([IsAuthenticated])
-def user_detail(request):
+def user(request):
     serializer = MutsaUserResponseSerializer(request.user)
     return Response(serializer.data)
+
+@api_view(['GET', 'PUT'])
+@permission_classes([IsAuthenticated])
+def user_detail(request, id):
+    user = user.objects.get(id=id)
+    if request.method == 'GET':
+        serializer = MutsaUserResponseSerializer(user)
+        return Response(serializer.data, status = 200)
+    elif request.method == 'PUT':
+         serializer = MutsaUserResponseSerializer(user, data=request.data)
+         if serializer.is_valid():
+            serializer.save()
+            return Response(serializer.data, status=200)
+         return Response(serializer.errors, status=400)
+
